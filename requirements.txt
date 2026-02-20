@@ -4,4 +4,4 @@ python-multipart
 pymongo[srv]
 pillow
 numpy
-python-dotenv
+google-generativeai
