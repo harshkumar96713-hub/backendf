@@ -5,16 +5,12 @@ from typing import List, Dict
 from datetime import datetime
 from pymongo import MongoClient
 import os
-from dotenv import load_dotenv
 import base64
 import json
 import hashlib
 import re
 
 import google.generativeai as genai
-
-# ===================== LOAD ENV =====================
-load_dotenv()
 
 # ===================== FASTAPI ======================
 app = FastAPI()
@@ -28,13 +24,16 @@ app.add_middleware(
 )
 
 # ===================== MONGODB ======================
-MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017/darkpattern_db")
+MONGO_URL = os.environ.get("MONGO_URL")
+if not MONGO_URL:
+    raise RuntimeError("MONGO_URL missing")
+
 client = MongoClient(MONGO_URL)
-db = client.darkpattern_db
-analyses_collection = db.analyses
+db = client["darkpattern_db"]
+analyses_collection = db["analyses"]
 
 # ===================== GEMINI ======================
-EMERGENT_LLM_KEY = os.getenv("EMERGENT_LLM_KEY")
+EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY")
 if not EMERGENT_LLM_KEY:
     raise RuntimeError("EMERGENT_LLM_KEY missing")
 
@@ -203,7 +202,7 @@ async def analyze(req: AnalyzeRequest):
         "simple_summary": generate_summary(dpi, req.language),
         "detected_issues": generate_issues(analysis, req.language),
         "signal_breakdown": signals,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.utcnow().isoformat(),
         "language": req.language,
         "image_hash": img_hash
     }
@@ -227,7 +226,8 @@ async def history():
 async def health():
     return {"status": "healthy"}
 
-# ===================== RUN ======================
+# ===================== RUN (LOCAL ONLY) ======================
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=9000)
+    port = int(os.environ.get("PORT", 9000))
+    uvicorn.run("server:app", host="0.0.0.0", port=port)
